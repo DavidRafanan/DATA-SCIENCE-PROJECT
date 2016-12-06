@@ -1,4 +1,6 @@
 install.packages('lsa')
 install.packages('twitteR')
+install.packages('tm')
 library(lsa)
 library(twitteR)
+library(tm)
