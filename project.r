@@ -46,7 +46,7 @@ twLB = readRDS('./NBA_TweetsLakersBulls.RDS')
 twLS = readRDS('./NBA_TweetsLakersSuns.RDS')
 twLK = readRDS('./NBA_TweetsLakersKnicks.RDS')
 
-#Convert to our timezone and refine the filter to game start and end time 
+#Convert to our timezone and refine the filter to the tweets during the game start and end time 
 #LakersVJazz Starttime: 7:30pm
 LakersJazz = twListToDF(twLJ)
 options(tz="America/New York")
