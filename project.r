@@ -1,8 +1,13 @@
+
+###AFTER INSTALLING THE PACKAGE DO NOT CONNECT TO TWITTER TO RETRIEVE THE TWEETS INSTEAD START THE CODE FROM READRDS
+
 install.packages('lsa')
 install.packages('twitteR')
 install.packages('tm')
+install.packages('ngram')
 install.packages('lubridate')
 library(lsa)
+library(ngram)
 library(twitteR)
 library(tm)
 library(lubridate)
@@ -17,19 +22,19 @@ access_secret <- 'dguZ2IxpPi3BJIagx0T58SkN5sS6dQS00D1nVZMoYd9BZ'
 
 setup_twitter_oauth(key, secret, access_token, access_secret)
 
-##Retrieve the tweets during the game 
+##Retrieve the tweets during the game -DO NOT RUN!!!!! LOAD FROM RDS!!!!! 
 twLJ = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-05', until = '2016-12-06')
 twLM = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-03', until = '2016-12-04')
 twLB = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-11-30', until = '2016-12-01')
 twLS = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-09', until = '2016-12-10')
 
-#save a copy as backup
+#save a copy as backup # DO NOT RUN LOAD FROM RDS
 saveRDS(twLJ, './NBA_TweetsLakersJazz.RDS')
 saveRDS(twLM, './NBA_TweetsLakersMemphis.RDS')
 saveRDS(twLB, './NBA_TweetsLakersBulls.RDS')
 saveRDS(twLS, './NBA_TweetsLakersBulls.RDS')
 
-#loading from file 
+##START THE CODE HERE#loading from file ###START OUR CODE HERE
 twLJ = readRDS('./NBA_TweetsLakersJazz.RDS')
 twLM = readRDS('./NBA_TweetsLakersJazz.RDS')
 twLB = readRDS('./NBA_TweetsLakersBulls.RDS')
@@ -76,3 +81,16 @@ LiveTweetsLakersJazz$text <-sapply(LiveTweetsLakersSuns$text, tolower)
 basketballTerms= read.table("Basketball corpus.txt")
 basketballVector= VectorSource(basketballTerms)
 basketballCorpus= Corpus(basketballVector)
+
+
+# Vizualization of the tweets via a word cloud # preliminary 
+# Create corpus
+corpus=Corpus(VectorSource(data$tweet))
+
+# Remove stopwords
+corpus=tm_map(corpus,function(x) removeWords(x,stopwords()))
+# convert corpus to a Plain Text Document
+corpus=tm_map(corpus,PlainTextDocument)
+
+col=brewer.pal(6,"Dark2")
+wordcloud(corpus, min.freq=25, scale=c(5,2),rot.per = 0.25, random.color=T, max.word=45, random.order=F,colors=col)
