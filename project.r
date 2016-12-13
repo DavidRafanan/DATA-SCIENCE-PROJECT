@@ -175,3 +175,6 @@ v <- sort(rowSums(m),decreasing=TRUE)
 freqTermsLakersKnicks <- data.frame(word = names(v),freq=v)
 head(freqTermsLakersKnicks, 20)
 
+PlayerStats<-read.csv("PlayerStats.csv")
+
+
