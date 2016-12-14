@@ -120,10 +120,14 @@ LiveTweetsLakersKnicks$text <-sapply(LiveTweetsLakersKnicks$text, tolower)
 LiveTweetsThunderPort$text <- sapply(LiveTweetsThunderPort$text, tolower)
 LiveTweetsThunderCeltics$text <- sapply(LiveTweetsThunderCeltics$text, tolower)
 
-#setting up corpus for basket ball terms
-basketballTerms= read.table("Basketball corpus.txt")
-basketballVector= VectorSource(basketballTerms)
-basketballCorpus= Corpus(basketballVector)
+#setting up corpus for good and bad basketball terms
+goodBasketballTerms= read.table("Good basketball terms.txt")
+goodBasketballVector= VectorSource(goodBasketballTerms)
+goodBasketballCorpus= Corpus(goodBasketballVector)
+  
+badBasketballTerms= read.table("Bad basketball terms.txt")
+badBasketballVector= VectorSource(badBasketballTerms)
+badBasketballCorpus= Corpus(badBasketballVector)
 
 #regex expressions removing hash tags user ids, retweets and link headers to better denoise the data
 clean_tweets <- function(twitterList) {
