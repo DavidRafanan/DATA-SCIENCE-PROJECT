@@ -125,17 +125,38 @@ basketballTerms= read.table("Basketball corpus.txt")
 basketballVector= VectorSource(basketballTerms)
 basketballCorpus= Corpus(basketballVector)
 
+#regex expressions removing hash tags user ids, retweets and link headers to better denoise the data
+clean_tweets <- function(twitterList) {
+  clean_tweet$text <- gsub("&amp", "", twitterList$text)
+  clean_tweet$text <- gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", clean_tweet$text)
+  clean_tweet$text <- gsub("@\\w+", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[[:punct:]]", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[[:digit:]]", "", clean_tweet$text)
+  clean_tweet$text <- gsub("http\\w+", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[ \t]{2,}", "", clean_tweet$text)
+  clean_tweet$text <- gsub("^\\s+|\\s+$", "", clean_tweet$text) 
+  return(clean_tweet)
+}
+
+sanitizedLakersJazz <-clean_tweets(LiveTweetsLakersJazz)
+sanitizedLakersBulls <-clean_tweets(LiveTweetsLakersBulls)
+sanitizedLakersMemphis <-clean_tweets(LiveTweetsLakersMemphis)
+sanitizedLakersSuns <-clean_tweets(LiveTweetsLakersSuns)
+sanitizedLakersKnicks <-clean_tweets(LiveTweetsLakersKnicks)
+sanitizedThunderPortland <-clean_tweets(LiveTweetsThunderPort)
+sanitizedThunderCeltics <- clean_tweets(LiveTweetsThunderCeltics)
+
 
 # Vizualization of the tweets via wordclouds
 # Create corpus for each of the five games 
-corpusLJ =Corpus(VectorSource(LiveTweetsLakersJazz$text))
-corpusLS =Corpus(VectorSource(LiveTweetsLakersSuns$text))
-corpusLB =Corpus(VectorSource(LiveTweetsLakersBulls$text))
-corpusLM =Corpus(VectorSource(LiveTweetsLakersMemphis$text))
-corpusLK =Corpus(VectorSource(LiveTweetsLakersKnicks$text))
+corpusLJ =Corpus(VectorSource(sanitizedLakersJazz))
+corpusLS =Corpus(VectorSource(sanitizedLakersSuns))
+corpusLB =Corpus(VectorSource(sanitizedLakersBulls))
+corpusLM =Corpus(VectorSource(sanitizedLakersMemphis))
+corpusLK =Corpus(VectorSource(sanitizedLakersKnicks))
 
-corpusTP =Corpus(VectorSource(LiveTweetsThunderPort$text))
-corpusTC =Corpus(VectorSource(LiveTweetsThunderCeltics$text))
+corpusTP =Corpus(VectorSource(sanitizedThunderPortland))
+corpusTC =Corpus(VectorSource(sanitizedThunderCeltics))
 
 # Remove stopwords such as: the, is, at, which, and on. This is to increase performance of our process.
 corpusLJ=tm_map(corpusLJ,function(x) removeWords(x,stopwords("english")))
@@ -231,6 +252,7 @@ m <- as.matrix(dtmThunderCeltics)
 v <- sort(rowSums(m),decreasing=TRUE)
 freqTermsThunderCeltics <- data.frame(word = names(v),freq=v)
 head(freqTermsThunderCeltics, 20)
+
 
 
 #file for player statistics
