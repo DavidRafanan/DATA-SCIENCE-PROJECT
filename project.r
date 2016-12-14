@@ -175,6 +175,57 @@ v <- sort(rowSums(m),decreasing=TRUE)
 freqTermsLakersKnicks <- data.frame(word = names(v),freq=v)
 head(freqTermsLakersKnicks, 20)
 
+#file for player statistics
 PlayerStats<-read.csv("PlayerStats.csv")
+  
+#unigrams for Lakers, Offense, Defense
+LakersJazzUnigram = ngram(LiveTweetsLakersJazz$text, n=1)
+get.ngrams(LakersJazzUnigram)
+
+LakersMemphisUnigram = ngram(LiveTweetsLakersMemphis$text, n=1)
+get.ngrams(LakersMemphisUnigram)
+
+LakersBullsUnigram = ngram(LiveTweetsLakersBulls$text, n=1)
+get.ngrams(LakersBullsUnigram)
+
+LakersSunsUnigram = ngram(LiveTweetsLakersSuns$text, n=1)
+get.ngrams(LakersSunsUnigram)
+
+LakersKnicksUnigram = ngram(LiveTweetsLakersKnicks$text, n=1)
+get.ngrams(LakersKnicksUnigrams)
+
+#bigrams for names
+LakersJazzBigram = ngram(LiveTweetsLakersJazz$text, n=2)
+get.ngrams(LakersJazzBigram)
+
+LakersMemphisBigram = ngram(LiveTweetsLakersMemphis$text, n=2)
+get.ngrams(LakersMemphisBigram)
+
+LakersBullsBigram = ngram(LiveTweetsLakersBulls$text, n=2)
+get.ngrams(LakersBullsBigram)
+
+LakersSunsBigram = ngram(LiveTweetsLakersSuns$text, n=2)
+get.ngrams(LakersSunsBigram)
+
+LakersKnicksBigram = ngram(LiveTweetsLakersKnicks$text, n=2)
+get.ngrams(LakersKnicksBigrams)
+
+#trigrams for plays
+LakersJazzTrigram = ngram(LiveTweetsLakersJazz$text, n=3)
+get.ngrams(LakersJazzTrigram)
+
+LakersMemphisTrigram = ngram(LiveTweetsLakersMemphis$text, n=3)
+get.ngrams(LakersMemphisTrigram)
+
+LakersBullsTrigram = ngram(LiveTweetsLakersBulls$text, n=3)
+get.ngrams(LakersBullsTrigram)
+
+LakersSunsTrigram = ngram(LiveTweetsLakersSuns$text, n=3)
+get.ngrams(LakersSunsTrigram)
+
+LakersKnicksTrigram = ngram(LiveTweetsLakersKnicks$text, n=3)
+get.ngrams(LakersKnicksTrigrams)
+  
+
 
 
