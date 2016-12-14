@@ -172,6 +172,15 @@ corpusLK=tm_map(corpusLK,function(x) removeWords(x,stopwords("english")))
 corpusTP=tm_map(corpusTP,function(x) removeWords(x,stopwords("english")))
 corpusTC=tm_map(corpusTC,function(x) removeWords(x,stopwords("english")))
 
+corpusLJ <- tm_map(corpusLJ, removeWords, c("los", "angeles", "lakers"))
+corpusLS <- tm_map(corpusLS, removeWords, c("los", "angeles", "lakers"))
+corpusLB <- tm_map(corpusLB, removeWords, c("los", "angeles", "lakers"))
+corpusLK <- tm_map(corpusLK, removeWords, c("los", "angeles", "lakers"))
+corpusLM <- tm_map(corpusLM, removeWords, c("los", "angeles", "lakers"))
+
+#oklahoma
+corpusTP <- tm_map(corpusTP, removeWords, c("okcthunder", "oklahoma", "city","thunder"))
+corpusTC <- tm_map(corpusTP, removeWords, c("okcthunder", "oklahoma", "city","thunder"))
 # convert corpus to a Plain Text Document so we can vizualize using wordcloud
 corpusLJ=tm_map(corpusLJ,PlainTextDocument)
 
