@@ -1,20 +1,35 @@
 
+---
+title: "NBA PERFORMANCE ANALYSIS PROJECT"
+author: "David Rafanan and Cory Dickson"
+date: "December 15, 2016"
+output:
+html_document: default
+---
 ###AFTER INSTALLING THE PACKAGE DO NOT CONNECT TO TWITTER TO RETRIEVE THE TWEETS INSTEAD START THE CODE FROM READRDS
-
+```{r} 
 install.packages('lsa')
 install.packages('twitteR')
 install.packages('tm')
 install.packages('ngram')
+install.packages('stylo')
 install.packages('wordcloud')
 install.packages("SnowballC")
 install.packages('lubridate')
+install.packages('ggplot2')
 library(lsa)
 library(SnowballC)
 library(wordcloud)
 library(ngram)
+library(stylo)
 library(twitteR)
 library(tm)
 library(lubridate)
+library(ggplot2)
+```
+
+#Twitter Authentication
+```{r}
 lapply(c('twitteR', 'ggplot2', 'lubridate', 'tm'), library, character.only = TRUE)
 theme_set(new = theme_bw())
 source('../../R/twitterAuth.R')
@@ -25,8 +40,10 @@ access_token <- '805992778031366144-pMoJ8a4cWPI1VldJ6ZUk2RQ8r7Ztvla'
 access_secret <- 'dguZ2IxpPi3BJIagx0T58SkN5sS6dQS00D1nVZMoYd9BZ'
 options(tz="America/New York")
 setup_twitter_oauth(key, secret, access_token, access_secret)
+```
 
 ##Retrieve the tweets during the game -DO NOT RUN!!!!! LOAD FROM RDS!!!!! 
+```{r}
 twLJ = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-05', until = '2016-12-06')
 twLM = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-03', until = '2016-12-04')
 twLB = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-11-30', until = '2016-12-01')
@@ -47,9 +64,11 @@ saveRDS(twLK, './NBA_TweetsLakersKnicks.RDS')
 #oklahoma
 saveRDS(twOP, './NBA_TweetsThunderPortland.RDS')
 saveRDS(twOC, './NBA_TweetsThunderCeltics.RDS')
+```
 
 
 ##START THE CODE HERE#loading from file ###START OUR CODE HERE
+```{r}
 twLJ = readRDS('./NBA_TweetsLakersJazz.RDS')
 twLM = readRDS('./NBA_TweetsLakersJazz.RDS')
 twLB = readRDS('./NBA_TweetsLakersBulls.RDS')
@@ -58,8 +77,10 @@ twLK = readRDS('./NBA_TweetsLakersKnicks.RDS')
 
 twOP = readRDS('./NBA_TweetsThunderPortland.RDS')
 twOC = readRDS('./NBA_TweetsThunderCeltics.RDS')
+```
 
 #Convert to our timezone and refine the filter to the tweets during the game start and end time 
+```{r}
 #LakersVJazz Starttime: 7:30pm
 LakersJazz = twListToDF(twLJ)
 options(tz="America/New York")
@@ -99,8 +120,10 @@ LiveTweetsThunderPort<- subset(ThunderPort, format(ThunderPort$created, "%H:%M:$
 ThunderCeltics = twListToDF(twOC)
 ThunderCeltics$created <- with_tz(ThunderCeltics$created, 'America/New York')
 LiveTweetsThunderCeltics<- subset(ThunderCeltics, format(ThunderCeltics$created, "%H:%M:$S") > "19:00:00" & format(ThunderCeltics$created, "%H:%M:$S") < "22:30:00")
+```
 
 #Remove emoji's and other unknown characters from the dataset
+```{r}
 LiveTweetsLakersSuns$text <- sapply(LiveTweetsLakersSuns$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
 LiveTweetsLakersBulls$text <- sapply(LiveTweetsLakersBulls$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
 LiveTweetsLakersMemphis$text <- sapply(LiveTweetsLakersMemphis$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
@@ -109,8 +132,10 @@ LiveTweetsLakersKnicks$text <- sapply(LiveTweetsLakersKnicks$text,function(row) 
 
 LiveTweetsThunderPort$text<- sapply(LiveTweetsThunderPort$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
 LiveTweetsThunderCeltics$text<- sapply(LiveTweetsThunderCeltics$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+```
 
 # Make all the tweets lower case to make n-grams analysis easier
+```{r}
 LiveTweetsLakersSuns$text <-sapply(LiveTweetsLakersSuns$text, tolower)
 LiveTweetsLakersBulls$text <-sapply(LiveTweetsLakersBulls$text, tolower)
 LiveTweetsLakersMemphis$text <-sapply(LiveTweetsLakersMemphis$text, tolower)
@@ -119,17 +144,21 @@ LiveTweetsLakersKnicks$text <-sapply(LiveTweetsLakersKnicks$text, tolower)
 
 LiveTweetsThunderPort$text <- sapply(LiveTweetsThunderPort$text, tolower)
 LiveTweetsThunderCeltics$text <- sapply(LiveTweetsThunderCeltics$text, tolower)
+```
 
 #setting up corpus for good and bad basketball terms
+```{r}
 goodBasketballTerms= read.table("Good basketball terms.txt")
 goodBasketballVector= VectorSource(goodBasketballTerms)
 goodBasketballCorpus= Corpus(goodBasketballVector)
-  
+
 badBasketballTerms= read.table("Bad basketball terms.txt")
 badBasketballVector= VectorSource(badBasketballTerms)
 badBasketballCorpus= Corpus(badBasketballVector)
+```
 
 #regex expressions removing hash tags user ids, retweets and link headers to better denoise the data
+```{r}
 clean_tweets <- function(twitterList) {
   clean_tweet$text <- gsub("&amp", "", twitterList$text)
   clean_tweet$text <- gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", clean_tweet$text)
@@ -149,10 +178,12 @@ sanitizedLakersSuns <-clean_tweets(LiveTweetsLakersSuns)
 sanitizedLakersKnicks <-clean_tweets(LiveTweetsLakersKnicks)
 sanitizedThunderPortland <-clean_tweets(LiveTweetsThunderPort)
 sanitizedThunderCeltics <- clean_tweets(LiveTweetsThunderCeltics)
+```
 
 
 # Vizualization of the tweets via wordclouds
 # Create corpus for each of the five games 
+```{r}
 corpusLJ =Corpus(VectorSource(sanitizedLakersJazz))
 corpusLS =Corpus(VectorSource(sanitizedLakersSuns))
 corpusLB =Corpus(VectorSource(sanitizedLakersBulls))
@@ -161,8 +192,10 @@ corpusLK =Corpus(VectorSource(sanitizedLakersKnicks))
 
 corpusTP =Corpus(VectorSource(sanitizedThunderPortland))
 corpusTC =Corpus(VectorSource(sanitizedThunderCeltics))
+```
 
 # Remove stopwords such as: the, is, at, which, and on. This is to increase performance of our process.
+```{r}
 corpusLJ=tm_map(corpusLJ,function(x) removeWords(x,stopwords("english")))
 corpusLS=tm_map(corpusLS,function(x) removeWords(x,stopwords("english")))
 corpusLB=tm_map(corpusLB,function(x) removeWords(x,stopwords("english")))
@@ -171,23 +204,18 @@ corpusLK=tm_map(corpusLK,function(x) removeWords(x,stopwords("english")))
 
 corpusTP=tm_map(corpusTP,function(x) removeWords(x,stopwords("english")))
 corpusTC=tm_map(corpusTC,function(x) removeWords(x,stopwords("english")))
+```
 
-corpusLJ <- tm_map(corpusLJ, removeWords, c("los", "angeles", "lakers"))
-corpusLS <- tm_map(corpusLS, removeWords, c("los", "angeles", "lakers"))
-corpusLB <- tm_map(corpusLB, removeWords, c("los", "angeles", "lakers"))
-corpusLK <- tm_map(corpusLK, removeWords, c("los", "angeles", "lakers"))
-corpusLM <- tm_map(corpusLM, removeWords, c("los", "angeles", "lakers"))
-
-#oklahoma
-corpusTP <- tm_map(corpusTP, removeWords, c("okcthunder", "oklahoma", "city","thunder"))
-corpusTC <- tm_map(corpusTP, removeWords, c("okcthunder", "oklahoma", "city","thunder"))
 # convert corpus to a Plain Text Document so we can vizualize using wordcloud
+```{r}
 corpusLJ=tm_map(corpusLJ,PlainTextDocument)
 
 #display settings
 par(mfrow=c(1,1))
 col=brewer.pal(6,"Dark2")
-
+```
+#Word Clouds
+```{r}
 #Wordcloud: LakersVJazz
 set.seed(2245)
 wordcloud(corpusLJ, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
@@ -221,8 +249,10 @@ wordcloud(corpusTP, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, ran
 set.seed(3011)
 corpusTC=tm_map(corpusTC,PlainTextDocument)
 wordcloud(corpusTC, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+```
 
 #Create a frequency table of terms used in tweets
+```{r}
 dtmLakersJazz<- TermDocumentMatrix(corpusLJ)
 m <- as.matrix(dtmLakersJazz)
 v <- sort(rowSums(m),decreasing=TRUE)
@@ -265,60 +295,54 @@ m <- as.matrix(dtmThunderCeltics)
 v <- sort(rowSums(m),decreasing=TRUE)
 freqTermsThunderCeltics <- data.frame(word = names(v),freq=v)
 head(freqTermsThunderCeltics, 20)
+```
 
 
 
 #file for player statistics
+```{r}
 PlayerStats<-read.csv("PlayerStats.csv")
-  
-#unigrams for Lakers, Offense, Defense
-LakersJazzUnigram = ngram(LiveTweetsLakersJazz$text, n=1)
-waget.ngrams(LakersJazzUnigram)
+```
 
-LakersMemphisUnigram = ngram(LiveTweetsLakersMemphis$text, n=1)
-get.ngrams(LakersMemphisUnigram)
+#data frame ngrams for Lakers Jazz and showing most frequent terms 
+```{r}
+tblUnigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 1)))
+tblBigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 2)))
+tblTrigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 3)))
 
-LakersBullsUnigram = ngram(LiveTweetsLakersBulls$text, n=1)
-get.ngrams(LakersBullsUnigram)
+#data frame ngrams for Lakers Memphis
+tblUnigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 1)))
+tblBigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 2)))
+tblTrigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 3)))
 
-LakersSunsUnigram = ngram(LiveTweetsLakersSuns$text, n=1)
-get.ngrams(LakersSunsUnigram)
+#data frame ngrams for Lakers Bulls
+tblUnigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 1)))
+tblBigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 2)))
+tblTrigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 3)))
 
-LakersKnicksUnigram = ngram(LiveTweetsLakersKnicks$text, n=1)
-get.ngrams(LakersKnicksUnigrams)
+#data frame ngrams for Lakers Suns
+tblUnigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 1)))
+tblBigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 2)))
+tblTrigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 3)))
 
-#bigrams for names
-LakersJazzBigram = ngram(LiveTweetsLakersJazz$text, n=2)
-get.ngrams(LakersJazzBigram)
+#data frame ngrams for Lakers Knicks
+tblUnigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 1)))
+tblBigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 2)))
+tblTrigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 3)))
 
-LakersMemphisBigram = ngram(LiveTweetsLakersMemphis$text, n=2)
-get.ngrams(LakersMemphisBigram)
+#data frame ngrams for Thunder Trailblazers
+tblUnigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 1)))
+tblBigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 2)))
+tblTrigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 3)))
 
-LakersBullsBigram = ngram(LiveTweetsLakersBulls$text, n=2)
-get.ngrams(LakersBullsBigram)
-
-LakersSunsBigram = ngram(LiveTweetsLakersSuns$text, n=2)
-get.ngrams(LakersSunsBigram)
-
-LakersKnicksBigram = ngram(LiveTweetsLakersKnicks$text, n=2)
-get.ngrams(LakersKnicksBigrams)
-
-#trigrams for plays
-LakersJazzTrigram = ngram(LiveTweetsLakersJazz$text, n=3)
-get.ngrams(LakersJazzTrigram)
-
-LakersMemphisTrigram = ngram(LiveTweetsLakersMemphis$text, n=3)
-get.ngrams(LakersMemphisTrigram)
-
-LakersBullsTrigram = ngram(LiveTweetsLakersBulls$text, n=3)
-get.ngrams(LakersBullsTrigram)
-
-LakersSunsTrigram = ngram(LiveTweetsLakersSuns$text, n=3)
-get.ngrams(LakersSunsTrigram)
-
-LakersKnicksTrigram = ngram(LiveTweetsLakersKnicks$text, n=3)
-get.ngrams(LakersKnicksTrigrams)
-  
+#data frame ngrams for Thunder Celtics
+tblUnigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 1)))
+tblBigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 2)))
+tblTrigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 3)))
+```
 
 
-
+#sentiment analysis
+```{r}
+basketball_sentiment_performance_Jazz = function(sanitizedLakersJazz, goodBasketballCorpus, badBasketballCorpus, .progress='none' )
+```
