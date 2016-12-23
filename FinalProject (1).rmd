@@ -1,0 +1,668 @@
+
+---
+title: "NBA PERFORMANCE ANALYSIS PROJECT"
+author: "David Rafanan and Cory Dickson"
+date: "December 15, 2016"
+output:
+html_document: default
+---
+###AFTER INSTALLING THE PACKAGE DO NOT CONNECT TO TWITTER TO RETRIEVE THE TWEETS INSTEAD START THE CODE FROM READRDS
+```{r} 
+install.packages('lsa')
+install.packages('twitteR')
+install.packages('tm')
+install.packages('ngram')
+install.packages('plyr')
+install.packages('stylo')
+install.packages('wordcloud')
+install.packages("SnowballC")
+install.packages('lubridate')
+install.packages('ggplot2')
+library(lsa)
+library(SnowballC)
+library(wordcloud)
+library(ngram)
+library(plyr)
+library(stylo)
+library(twitteR)
+library(tm)
+library(lubridate)
+library(ggplot2)
+```
+
+#Twitter Authentication
+```{r}
+lapply(c('twitteR', 'ggplot2', 'lubridate', 'tm'), library, character.only = TRUE)
+theme_set(new = theme_bw())
+source('../../R/twitterAuth.R')
+set.seed(9561)
+key <- 'jPEdMwCjSY01HmGCTFc9IaTik'
+secret <- 'mkO1Dz9fv5MpmQhDPGBxzzgwV96tHUoCkxazs4TY501OrNuvfv'
+access_token <- '805992778031366144-pMoJ8a4cWPI1VldJ6ZUk2RQ8r7Ztvla'
+access_secret <- 'dguZ2IxpPi3BJIagx0T58SkN5sS6dQS00D1nVZMoYd9BZ'
+options(tz="America/New York")
+setup_twitter_oauth(key, secret, access_token, access_secret)
+```
+
+##Retrieve the tweets during the game -DO NOT RUN!!!!! LOAD FROM RDS!!!!! 
+```{r}
+twLJ = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-05', until = '2016-12-06')
+twLM = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-03', until = '2016-12-04')
+twLB = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-11-30', until = '2016-12-01')
+twLS = searchTwitter('Los Angeles Lakers', n = 3000, since = '2016-12-09', until = '2016-12-10')
+twLK = searchTwitter('Los Angeles Lakers', n = 1000, since = '2016-12-11', until = '2016-12-12')
+
+##OKLAHOMA CITY THUNDER TWEETS #OKCThunder
+twOP = searchTwitter('OKCThunder', n = 3000, since = '2016-12-13', until = '2016-12-14')
+twOC = searchTwitter('OKCThunder', n = 3000, since = '2016-12-11', until = '2016-12-12')
+
+#save a copy as backup # DO NOT RUN LOAD FROM RDS
+saveRDS(twLJ, './NBA_TweetsLakersJazz.RDS')
+saveRDS(twLM, './NBA_TweetsLakersMemphis.RDS')
+saveRDS(twLB, './NBA_TweetsLakersBulls.RDS')
+saveRDS(twLS, './NBA_TweetsLakersSuns.RDS')
+saveRDS(twLK, './NBA_TweetsLakersKnicks.RDS')
+
+#oklahoma
+saveRDS(twOP, './NBA_TweetsThunderPortland.RDS')
+saveRDS(twOC, './NBA_TweetsThunderCeltics.RDS')
+```
+
+
+##START THE CODE HERE#loading from file ###START OUR CODE HERE
+```{r}
+twLJ = readRDS('./NBA_TweetsLakersJazz.RDS')
+twLM = readRDS('./NBA_TweetsLakersJazz.RDS')
+twLB = readRDS('./NBA_TweetsLakersBulls.RDS')
+twLS = readRDS('./NBA_TweetsLakersSuns.RDS')
+twLK = readRDS('./NBA_TweetsLakersKnicks.RDS')
+
+twOP = readRDS('./NBA_TweetsThunderPortland.RDS')
+twOC = readRDS('./NBA_TweetsThunderCeltics.RDS')
+```
+
+#Convert to our timezone and refine the filter to the tweets during the game start and end time 
+```{r}
+#LakersVJazz Starttime: 7:30pm
+LakersJazz = twListToDF(twLJ)
+options(tz="America/New York")
+LakersJazz$created <- with_tz(LakersJazz$created, 'America/New York')
+LiveTweetsLakersJazz<- subset(LakersJazz, format(LakersJazz$created, "%H:%M:$S") > "19:30:00" & format(LakersJazz$created, "%H:%M:$S") < "22:45:00")
+
+#LakersVMemphisGrizzly's Starttime: 8:00pm
+LakersMemphis = twListToDF(twLM)
+options(tz="America/New York")
+LakersMemphis$created <- with_tz(LakersMemphis$created, 'America/New York')
+LiveTweetsLakersMemphis<- subset(LakersMemphis, format(LakersMemphis$created, "%H:%M:$S") > "20:00:00" & format(LakersMemphis$created, "%H:%M:$S") < "23:00:00")
+
+#LakersVChicagoBulls Starttime: 8:00pm
+LakersBulls = twListToDF(twLB)
+options(tz="America/New York")
+LakersBulls$created <- with_tz(LakersBulls$created, 'America/New York')
+LiveTweetsLakersBulls <- subset(LakersBulls, format(LakersBulls$created, "%H:%M:$S") > "20:00:00" & format(LakersBulls$created, "%H:%M:$S") < "23:00:00")
+
+#LakersVPheonixSuns Starttime: 10:30pm
+LakersSuns = twListToDF(twLS)
+options(tz="America/New York")
+LakersSuns$created <- with_tz(LakersSuns$created, 'America/New York')
+LiveTweetsLakersSuns <- subset(LakersSuns, format(LakersSuns$created, "%H:%M:$S") > "21:30:00" & format(LakersSuns$created, "%H:%M:$S") < "24:00:00")
+
+#LakersVNewYorkKnicks Starttime: 10:30pm
+LakersKnicks = twListToDF(twLK)
+options(tz="America/New York")
+LakersKnicks$created <- with_tz(LakersKnicks$created, 'America/New York')
+LiveTweetsLakersKnicks <- subset(LakersKnicks, format(LakersKnicks$created, "%H:%M:$S") > "21:00:00" & format(LakersKnicks$created, "%H:%M:$S") < "24:00:00")
+
+#OklahomaVPortland Starttime: 10:30pm
+ThunderPort = twListToDF(twOP)
+ThunderPort$created <- with_tz(ThunderPort$created, 'America/New York')
+LiveTweetsThunderPort<- subset(ThunderPort, format(ThunderPort$created, "%H:%M:$S") > "22:30:00" & format(ThunderPort$created, "%H:%M:$S") < "24:00:00")
+
+#OklahomaVCeltics Starttime: 7:00pm
+ThunderCeltics = twListToDF(twOC)
+ThunderCeltics$created <- with_tz(ThunderCeltics$created, 'America/New York')
+LiveTweetsThunderCeltics<- subset(ThunderCeltics, format(ThunderCeltics$created, "%H:%M:$S") > "19:00:00" & format(ThunderCeltics$created, "%H:%M:$S") < "22:30:00")
+```
+
+#Remove emoji's and other unknown characters from the dataset
+```{r}
+LiveTweetsLakersSuns$text <- sapply(LiveTweetsLakersSuns$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+LiveTweetsLakersBulls$text <- sapply(LiveTweetsLakersBulls$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+LiveTweetsLakersMemphis$text <- sapply(LiveTweetsLakersMemphis$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+LiveTweetsLakersJazz$text <- sapply(LiveTweetsLakersJazz$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+LiveTweetsLakersKnicks$text <- sapply(LiveTweetsLakersKnicks$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+
+LiveTweetsThunderPort$text<- sapply(LiveTweetsThunderPort$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+LiveTweetsThunderCeltics$text<- sapply(LiveTweetsThunderCeltics$text,function(row) iconv(row, "utf-8-mac", "ASCII", sub=""))
+```
+
+# Make all the tweets lower case to make n-grams analysis easier
+```{r}
+LiveTweetsLakersSuns$text <-sapply(LiveTweetsLakersSuns$text, tolower)
+LiveTweetsLakersBulls$text <-sapply(LiveTweetsLakersBulls$text, tolower)
+LiveTweetsLakersMemphis$text <-sapply(LiveTweetsLakersMemphis$text, tolower)
+LiveTweetsLakersJazz$text <-sapply(LiveTweetsLakersJazz$text, tolower)
+LiveTweetsLakersKnicks$text <-sapply(LiveTweetsLakersKnicks$text, tolower)
+
+LiveTweetsThunderPort$text <- sapply(LiveTweetsThunderPort$text, tolower)
+LiveTweetsThunderCeltics$text <- sapply(LiveTweetsThunderCeltics$text, tolower)
+```
+
+#setting up corpus for good and bad basketball terms
+```{r}
+goodBasketballTerms= read.table("Good basketball terms.txt")
+goodBasketballVector= VectorSource(goodBasketballTerms)
+goodBasketballCorpus= Corpus(goodBasketballVector)
+
+badBasketballTerms= read.table("Bad basketball terms.txt")
+badBasketballVector= VectorSource(badBasketballTerms)
+badBasketballCorpus= Corpus(badBasketballVector)
+```
+
+#regex expressions removing hash tags user ids, retweets and link headers to better denoise the data
+```{r}
+clean_tweets <- function(twitterList) {
+  clean_tweet$text <- gsub("&amp", "", twitterList$text)
+  clean_tweet$text <- gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", clean_tweet$text)
+  clean_tweet$text <- gsub("@\\w+", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[[:punct:]]", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[[:digit:]]", "", clean_tweet$text)
+  clean_tweet$text <- gsub("http\\w+", "", clean_tweet$text)
+  clean_tweet$text <- gsub("[ \t]{2,}", "", clean_tweet$text)
+  clean_tweet$text <- gsub("^\\s+|\\s+$", "", clean_tweet$text) 
+  return(clean_tweet)
+}
+
+sanitizedLakersJazz <-clean_tweets(LiveTweetsLakersJazz)
+sanitizedLakersBulls <-clean_tweets(LiveTweetsLakersBulls)
+sanitizedLakersMemphis <-clean_tweets(LiveTweetsLakersMemphis)
+sanitizedLakersSuns <-clean_tweets(LiveTweetsLakersSuns)
+sanitizedLakersKnicks <-clean_tweets(LiveTweetsLakersKnicks)
+sanitizedThunderPortland <-clean_tweets(LiveTweetsThunderPort)
+sanitizedThunderCeltics <- clean_tweets(LiveTweetsThunderCeltics)
+```
+
+
+# Vizualization of the tweets via wordclouds
+# Create corpus for each of the five games 
+```{r}
+corpusLJ =Corpus(VectorSource(sanitizedLakersJazz))
+corpusLS =Corpus(VectorSource(sanitizedLakersSuns))
+corpusLB =Corpus(VectorSource(sanitizedLakersBulls))
+corpusLM =Corpus(VectorSource(sanitizedLakersMemphis))
+corpusLK =Corpus(VectorSource(sanitizedLakersKnicks))
+
+corpusTP =Corpus(VectorSource(sanitizedThunderPortland))
+corpusTC =Corpus(VectorSource(sanitizedThunderCeltics))
+```
+
+# Remove stopwords such as: the, is, at, which, and on. This is to increase performance of our process.
+```{r}
+corpusLJ=tm_map(corpusLJ,function(x) removeWords(x,stopwords("english")))
+corpusLS=tm_map(corpusLS,function(x) removeWords(x,stopwords("english")))
+corpusLB=tm_map(corpusLB,function(x) removeWords(x,stopwords("english")))
+corpusLM=tm_map(corpusLM,function(x) removeWords(x,stopwords("english")))
+corpusLK=tm_map(corpusLK,function(x) removeWords(x,stopwords("english")))
+
+corpusTP=tm_map(corpusTP,function(x) removeWords(x,stopwords("english")))
+corpusTC=tm_map(corpusTC,function(x) removeWords(x,stopwords("english")))
+```
+
+# convert corpus to a Plain Text Document so we can vizualize using wordcloud
+```{r}
+corpusLJ=tm_map(corpusLJ,PlainTextDocument)
+
+#display settings
+par(mfrow=c(1,1))
+col=brewer.pal(6,"Dark2")
+```
+#Word Clouds
+```{r}
+#Wordcloud: LakersVJazz
+set.seed(2245)
+wordcloud(corpusLJ, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Wordcloud: LakersBulls
+set.seed(1550)
+corpusLB=tm_map(corpusLB,PlainTextDocument)
+wordcloud(corpusLB, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Wordcloud: LakersSuns
+set.seed(3211)
+corpusLS=tm_map(corpusLS,PlainTextDocument)
+wordcloud(corpusLS, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Wordcloud: LakersMemphis
+set.seed(2111)
+corpusLM=tm_map(corpusLM,PlainTextDocument)
+wordcloud(corpusLM, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Wordcloud: LakersKnicks
+set.seed(4241)
+corpusLK=tm_map(corpusLK,PlainTextDocument)
+wordcloud(corpusLK, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Oklahoma Port
+set.seed(4211)
+corpusTP=tm_map(corpusTP,PlainTextDocument)
+wordcloud(corpusTP, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+
+#Oklahoma Celtics
+set.seed(3011)
+corpusTC=tm_map(corpusTC,PlainTextDocument)
+wordcloud(corpusTC, min.freq=25,rot.per = 0.35, random.color=F, max.word=45, random.order=F,colors=col)
+```
+
+#Create a frequency table of terms used in tweets
+```{r}
+dtmLakersJazz<- TermDocumentMatrix(corpusLJ)
+m <- as.matrix(dtmLakersJazz)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsLakersJazz <- data.frame(word = names(v),freq=v)
+head(freqTermsLakersJazz, 20)
+
+dtmLakersMemphis<- TermDocumentMatrix(corpusLM)
+m <- as.matrix(dtmLakersJazz)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsLakersMemphis <- data.frame(word = names(v),freq=v)
+head(freqTermsLakersMemphis, 20)
+
+dtmLakersBulls<- TermDocumentMatrix(corpusLB)
+m <- as.matrix(dtmLakersBulls)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsLakersBulls <- data.frame(word = names(v),freq=v)
+head(freqTermsLakersBulls, 20)
+
+dtmLakersSuns<- TermDocumentMatrix(corpusLS)
+m <- as.matrix(dtmLakersSuns)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsLakersSuns <- data.frame(word = names(v),freq=v)
+head(freqTermsLakersSuns, 20)
+
+dtmLakersKnicks<- TermDocumentMatrix(corpusLK)
+m <- as.matrix(dtmLakersKnicks)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsLakersKnicks <- data.frame(word = names(v),freq=v)
+head(freqTermsLakersKnicks, 20)
+
+
+dtmThunderPort<- TermDocumentMatrix(corpusTP)
+m <- as.matrix(dtmThunderPort)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsThunderPort <- data.frame(word = names(v),freq=v)
+head(freqTermsThunderPort, 20)
+
+dtmThunderCeltics<- TermDocumentMatrix(corpusTC)
+m <- as.matrix(dtmThunderCeltics)
+v <- sort(rowSums(m),decreasing=TRUE)
+freqTermsThunderCeltics <- data.frame(word = names(v),freq=v)
+head(freqTermsThunderCeltics, 20)
+```
+
+
+
+#file for player statistics
+```{r}
+PlayerStats<-read.csv("PlayerStats.csv")
+```
+
+#data frame ngrams for Lakers Jazz and showing most frequent terms 
+```{r}
+tblUnigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 1)))
+tblBigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 2)))
+tblTrigramLakersJazz <- data.frame(table(make.ngrams(freqTermsLakersJazz, ngram.size = 3)))
+
+
+topTermsLakersJazzUnigram <- tblUnigramLakersJazz.unigram[1:20,]
+colnames(topTermsLakersJazzUnigram) <- c("Lakers-Jazz Unigram", "Frequency")
+topTermsLakersJazzBigram <- tblBigramLakersJazz.bigram[1:20,]
+colnames(topTermsLakersJazzBigram) <- c("Lakers-Jazz Bigram", "Frequency")
+topTermsLakersJazzTrigram <- tblTrigramLakersJazz.trigram[1:20,]
+colnames(topTermsLakersJazzTrigram) <- c("Lakers-Jazz Trigram", "Frequency")
+
+#plots
+ggplot(topTermsLakersJazzUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Jazz Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersJazzBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Jazz Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersJazzTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Jazz Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Lakers Memphis
+tblUnigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 1)))
+tblBigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 2)))
+tblTrigramLakersMemphis <- data.frame(table(make.ngrams(freqTermsLakersMemphis, ngram.size = 3)))
+
+
+topTermsLakersMemphisUnigram <- tblUnigramLakersMemphis.unigram[1:20,]
+colnames(topTermsLakersMemphisUnigram) <- c("Lakers-Memphis Unigram", "Frequency")
+topTermsLakersMemphisBigram <- tblBigramLakersMemphis.bigram[1:20,]
+colnames(topTermsLakersMemphisBigram) <- c("Lakers-Memphis Bigram", "Frequency")
+topTermsLakersMemphisTrigram <- tblTrigramLakersMemphis.trigram[1:20,]
+colnames(topTermsLakersMemphisTrigram) <- c("Lakers-Memphis Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsLakersMemphisUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Memphis Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersMemphisBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Memphis Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersMemphisTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Memphis Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Lakers Bulls
+tblUnigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 1)))
+tblBigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 2)))
+tblTrigramLakersBulls <- data.frame(table(make.ngrams(freqTermsLakersBulls, ngram.size = 3)))
+
+
+topTermsLakersBullsUnigram <- tblUnigramLakersBulls.unigram[1:20,]
+colnames(topTermsLakersBullsUnigram) <- c("Lakers-Bulls Unigram", "Frequency")
+topTermsLakersBullsBigram <- tblBigramLakersBulls.bigram[1:20,]
+colnames(topTermsLakersBullsBigram) <- c("Lakers-Bulls Bigram", "Frequency")
+topTermsLakersBullsTrigram <- tblTrigramLakersBulls.trigram[1:20,]
+colnames(topTermsLakersBullsTrigram) <- c("Lakers-Bulls Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsLakersBullsUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Bulls Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersBullsBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Bulls Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersBullsTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Bulls Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Lakers Suns
+tblUnigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 1)))
+tblBigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 2)))
+tblTrigramLakersSuns <- data.frame(table(make.ngrams(freqTermsLakersSuns, ngram.size = 3)))
+
+
+topTermsLakersSunsUnigram <- tblUnigramLakersSuns.unigram[1:20,]
+colnames(topTermsLakersSunsUnigram) <- c("Lakers-Suns Unigram", "Frequency")
+topTermsLakersSunsBigram <- tblBigramLakersSuns.bigram[1:20,]
+colnames(topTermsLakersSunsBigram) <- c("Lakers-Suns Bigram", "Frequency")
+topTermsLakersSunsTrigram <- tblTrigramLakersSuns.trigram[1:20,]
+colnames(topTermsLakersSunsTrigram) <- c("Lakers-Suns Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsLakersSunsUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Suns Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersSunsBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Suns Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersSunsTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Suns Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Lakers Knicks
+tblUnigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 1)))
+tblBigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 2)))
+tblTrigramLakersKnicks <- data.frame(table(make.ngrams(freqTermsLakersKnicks, ngram.size = 3)))
+
+
+topTermsLakersKnicksUnigram <- tblUnigramLakersKnicks.unigram[1:20,]
+colnames(topTermsLakersKnicksUnigram) <- c("Lakers-Knicks Unigram", "Frequency")
+topTermsLakersKnicksBigram <- tblBigramLakersKnicks.bigram[1:20,]
+colnames(topTermsLakersKnicksBigram) <- c("Lakers-Knicks Bigram", "Frequency")
+topTermsLakersKnicksTrigram <- tblTrigramLakersKnicks.trigram[1:20,]
+colnames(topTermsLakersKnicksTrigram) <- c("Lakers-Knicks Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsLakersKnicksUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Knicks Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersKnicksBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Knicks Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsLakersKnicksTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Lakers Knicks Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Thunder Trailblazers
+tblUnigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 1)))
+tblBigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 2)))
+tblTrigramThunderPort <- data.frame(table(make.ngrams(freqTermsThunderPort, ngram.size = 3)))
+
+
+topTermsThunderPortUnigram <- tblUnigramThunderPort.unigram[1:20,]
+colnames(topTermsThunderPortUnigram) <- c("Thunder-Portland Unigram", "Frequency")
+topTermsThunderPortBigram <- tblBigramThunderPort.bigram[1:20,]
+colnames(topTermsThunderPortBigram) <- c("Thunder-Port Bigram", "Frequency")
+topTermsThunderPortTrigram <- tblTrigramThunderPort.trigram[1:20,]
+colnames(topTermsThunderPortTrigram) <- c("Thunder-Port Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsThunderPortUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Portland Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsThunderPortBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Portland Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsThunderPortTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Portland Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#data frame ngrams for Thunder Celtics
+tblUnigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 1)))
+tblBigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 2)))
+tblTrigramThunderCeltics <- data.frame(table(make.ngrams(freqTermsThunderCeltics, ngram.size = 3)))
+
+
+topTermsThunderCelticsUnigram <- tblUnigramThunderCeltics.unigram[1:20,]
+colnames(topTermsThunderCelticsUnigram) <- c("Thunder-Celtics Unigram", "Frequency")
+topTermsThunderCelticsBigram <- tblBigramThunderCeltics.bigram[1:20,]
+colnames(topTermsThunderCelticsBigram) <- c("Thunder-Celtics Bigram", "Frequency")
+topTermsThunderCelticsTrigram <- tblTrigramThunderCeltics.trigram[1:20,]
+colnames(topTermsThunderCelticsTrigram) <- c("Thunder-Celtics Trigram", "Frequency")
+
+
+#plots
+ggplot(topTermsThunderCelticsUnigram, aes(x = reorder(Unigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Celtics Unigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsThunderCelticsBigram, aes(x = reorder(Bigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Celtics Bigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(topTermsThunderCelticsTrigram, aes(x = reorder(Trigram, - Frequency), y = Frequency)) + 
+  geom_bar(stat = "Identity", fill = "Black") +  
+  geom_text(aes(label = Frequency), vjust = - 0.20, size = 3) +
+  xlab("Thunder Celtics Trigrams") +
+  ylab("Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+#sentiment analysis
+```{r}
+basketball_sentiment_performance_Jazz = function(corpusLJ, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+  LakersJazzScores = laply(corpusLJ, function(freqTermsLakersJazz,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsLakersJazz,goodBasketballCorpus)
+  negative_matches = match(freqTermsLakersJazz,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_LakersJazz_df = data.frame(score=LakersJazzScores, text=freqTermsLakersJazz)
+  return(score_LakersJazz_df)
+}
+
+
+basketball_sentiment_performance_Memphis = function(corpusLM, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+LakersMemphisScores = laply(corpusLM, function(freqTermsLakersMemphis,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsLakersMemphis,goodBasketballCorpus)
+  negative_matches = match(freqTermsLakersMemphis,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_LakersMemphis_df = data.frame(score=LakersMemphisScores, text=freqTermsLakersMemphis)
+  return(score_LakersMemphis_df)
+}
+
+
+basketball_sentiment_performance_Bulls = function(corpusLB, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+LakersBullsScores = laply(corpusLB, function(freqTermsLakersBulls,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsLakersBulls,goodBasketballCorpus)
+  negative_matches = match(freqTermsLakersBulls,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_LakersBulls_df = data.frame(score=LakersBullsScores, text=freqTermsLakersBulls)
+  return(score_LakersBulls_df)
+}
+
+
+basketball_sentiment_performance_Suns = function(corpusLS, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+LakersSunsScores = laply(corpusLS, function(freqTermsLakersSuns,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsLakersSuns,goodBasketballCorpus)
+  negative_matches = match(freqTermsLakersSuns,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_LakersBulls_df = data.frame(score=LakersSunsScores, text=freqTermsLakersSuns)
+  return(score_LakersSuns_df)
+}
+
+
+basketball_sentiment_performance_Knicks = function(corpusLK, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+LakersKnicksScores = laply(corpusLK, function(freqTermsLakersKnicks,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsLakersKnicks,goodBasketballCorpus)
+  negative_matches = match(freqTermsLakersKnicks,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_LakersBulls_df = data.frame(score=LakersKnicksScores, text=freqTermsLakersKnicks)
+  return(score_LakersKnicks_df)
+}
+
+
+basketball_sentiment_performance_ThunderPort = function(corpusTP, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+ThunderPortScores = laply(corpusTP, function(freqTermsThunderPort,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsThunderPort,goodBasketballCorpus)
+  negative_matches = match(freqTermsThunderPort,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_ThunderPort_df = data.frame(score=ThunderPortScores, text=freqTermsThunderPort)
+  return(score_ThunderPort_df)
+}
+
+
+basketball_sentiment_performance_ThunderCeltics = function(corpusTC, goodBasketballCorpus, badBasketballCorpus, .progress='none' ) {
+  
+ThunderCelticsScores = laply(corpusTC, function(freqTermsThunderCeltics,goodBasketballCorpus,badBasketballCorpus) {
+  positive_matches = match(freqTermsThunderCeltics,goodBasketballCorpus)
+  negative_matches = match(freqTermsThunderCeltics,badBasketballCorpus)
+  positive_matches = !is.na(positive_matches)
+  negative_matches = !is.na(negative_matches)
+  score = sum(positive_matches) - sum(negative_matches)
+  return(score)
+  }, positive_matches, negative_matches, .progress=.progress)
+  score_ThunderCeltics_df = data.frame(score=ThunderCelticsScores, text=freqTermsThunderCeltics)
+  return(score_ThunderCeltics_df)
+}
+```
